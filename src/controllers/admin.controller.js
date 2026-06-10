@@ -126,12 +126,34 @@ export const getAllOrders = async (req, res, next) => {
 
     const total = await Order.countDocuments(query)
     const orders = await Order.find(query)
-      .populate('user', 'name email')
+      .populate('user', 'name email phone')
+      .populate('items.brand', 'name logo')
       .sort('-createdAt')
       .skip((page - 1) * limit)
       .limit(Number(limit))
 
     res.json({ orders, total })
+  } catch (err) { next(err) }
+}
+
+export const getOrderById = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('user', 'name email phone')
+      .populate('items.product', 'name images')
+      .populate('items.brand', 'name logo')
+    if (!order) return res.status(404).json({ message: 'Order not found' })
+    res.json({ order })
+  } catch (err) { next(err) }
+}
+
+export const updateOrderStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body
+    const order = await Order.findByIdAndUpdate(req.params.id, { status }, { new: true })
+      .populate('user', 'name email phone')
+    if (!order) return res.status(404).json({ message: 'Order not found' })
+    res.json({ order })
   } catch (err) { next(err) }
 }
 

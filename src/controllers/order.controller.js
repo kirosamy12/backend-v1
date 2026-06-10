@@ -3,75 +3,92 @@ import Product from '../models/Product.js'
 import Coupon from '../models/Coupon.js'
 import Cart from '../models/Cart.js'
 
-// POST /api/orders
+// ─── Shared order builder ─────────────────────────────────────
+async function buildOrder({ items, shippingAddress, paymentMethod, couponCode, userId, guestInfo }) {
+  let subtotal = 0
+  const orderItems = []
+
+  for (const item of items) {
+    const product = await Product.findById(item.product).populate('brand', '_id')
+    if (!product) throw { status: 404, message: `Product ${item.product} not found` }
+    if (product.stock < item.quantity) throw { status: 400, message: `Insufficient stock for ${product.name}` }
+
+    orderItems.push({
+      product: product._id,
+      brand: product.brand._id,
+      name: product.name,
+      image: product.images[0] || '',
+      price: product.price,
+      size: item.size || '',
+      color: item.color || '',
+      quantity: item.quantity,
+    })
+
+    subtotal += product.price * item.quantity
+    await Product.findByIdAndUpdate(product._id, { $inc: { stock: -item.quantity, sold: item.quantity } })
+  }
+
+  // Coupon
+  let discount = 0
+  if (couponCode) {
+    const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), isActive: true })
+    if (coupon && (!coupon.expiresAt || coupon.expiresAt > new Date()) && subtotal >= coupon.minOrder) {
+      discount = coupon.type === 'percentage' ? (subtotal * coupon.value) / 100 : coupon.value
+      await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } })
+    }
+  }
+
+  const shippingFee = subtotal - discount >= 200 ? 0 : 15
+  const total = subtotal - discount + shippingFee
+
+  const orderData = {
+    items: orderItems,
+    shippingAddress,
+    subtotal,
+    discount,
+    shippingFee,
+    total,
+    coupon: couponCode || '',
+    paymentMethod: paymentMethod || 'cash',
+  }
+
+  if (userId) orderData.user = userId
+  if (guestInfo) orderData.guestInfo = guestInfo
+
+  return Order.create(orderData)
+}
+
+// POST /api/orders  (authenticated user)
 export const createOrder = async (req, res, next) => {
   try {
     const { items, shippingAddress, paymentMethod, couponCode } = req.body
-
-    // Validate products and calculate totals
-    let subtotal = 0
-    const orderItems = []
-
-    for (const item of items) {
-      const product = await Product.findById(item.product).populate('brand', '_id')
-      if (!product) return res.status(404).json({ message: `Product ${item.product} not found` })
-      if (product.stock < item.quantity) {
-        return res.status(400).json({ message: `Insufficient stock for ${product.name}` })
-      }
-
-      orderItems.push({
-        product: product._id,
-        brand: product.brand._id,
-        name: product.name,
-        image: product.images[0] || '',
-        price: product.price,
-        size: item.size || '',
-        color: item.color || '',
-        quantity: item.quantity,
-      })
-
-      subtotal += product.price * item.quantity
-
-      // Deduct stock
-      await Product.findByIdAndUpdate(product._id, {
-        $inc: { stock: -item.quantity, sold: item.quantity }
-      })
-    }
-
-    // Apply coupon
-    let discount = 0
-    if (couponCode) {
-      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), isActive: true })
-      if (coupon && (!coupon.expiresAt || coupon.expiresAt > new Date())) {
-        if (subtotal >= coupon.minOrder) {
-          discount = coupon.type === 'percentage'
-            ? (subtotal * coupon.value) / 100
-            : coupon.value
-          await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } })
-        }
-      }
-    }
-
-    const shippingFee = subtotal - discount >= 200 ? 0 : 15
-    const total = subtotal - discount + shippingFee
-
-    const order = await Order.create({
-      user: req.user._id,
-      items: orderItems,
-      shippingAddress,
-      subtotal,
-      discount,
-      shippingFee,
-      total,
-      coupon: couponCode || '',
-      paymentMethod: paymentMethod || 'card',
-    })
-
-    // Clear cart
+    const order = await buildOrder({ items, shippingAddress, paymentMethod, couponCode, userId: req.user._id })
     await Cart.findOneAndUpdate({ user: req.user._id }, { items: [] })
-
     res.status(201).json({ order })
-  } catch (err) { next(err) }
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message })
+    next(err)
+  }
+}
+
+// POST /api/orders/guest  (no auth required)
+export const createGuestOrder = async (req, res, next) => {
+  try {
+    const { items, shippingAddress, paymentMethod, couponCode, guestInfo } = req.body
+
+    if (!guestInfo?.name || !guestInfo?.phone) {
+      return res.status(400).json({ message: 'Name and phone are required' })
+    }
+    if (!items?.length) {
+      return res.status(400).json({ message: 'No items in order' })
+    }
+
+    const order = await buildOrder({ items, shippingAddress, paymentMethod, couponCode, guestInfo })
+    res.status(201).json({ order })
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message })
+    next(err)
+  }
 }
 
 // GET /api/orders (user's orders)

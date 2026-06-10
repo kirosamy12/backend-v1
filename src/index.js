@@ -16,6 +16,9 @@ import brandRoutes from './routes/brand.routes.js'
 import adminRoutes from './routes/admin.routes.js'
 import uploadRoutes from './routes/upload.routes.js'
 import publicRoutes from './routes/public.routes.js'
+import bannerRoutes from './routes/banner.routes.js'
+import promotionRoutes from './routes/promotion.routes.js'
+import presenceRoutes from './routes/presence.routes.js'
 import { notFound, errorHandler } from './middleware/errorHandler.js'
  
 const app = express()
@@ -26,7 +29,23 @@ connectDB()
 
 // Security
 app.use(helmet())
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200, message: 'Too many requests' }))
+
+// General rate limit
+const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, message: 'Too many requests' })
+// Stricter limit for upload endpoints
+const uploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many upload requests' })
+
+app.use(generalLimiter)
+app.use('/api/upload', uploadLimiter)
+// Apply upload limiter only on mutating methods for banners/promotions
+app.use('/api/banners', (req, res, next) => {
+  if (['POST', 'PUT', 'DELETE'].includes(req.method)) return uploadLimiter(req, res, next)
+  next()
+})
+app.use('/api/promotions', (req, res, next) => {
+  if (['POST', 'PUT', 'DELETE'].includes(req.method)) return uploadLimiter(req, res, next)
+  next()
+})
 
 // CORS — allow all vercel domains + localhost
 const allowedOrigins = [
@@ -68,6 +87,9 @@ app.use('/api/brand', brandRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/upload', uploadRoutes)
 app.use('/api/public', publicRoutes)
+app.use('/api/banners', bannerRoutes)
+app.use('/api/promotions', promotionRoutes)
+app.use('/api/presence', presenceRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', env: process.env.NODE_ENV }))

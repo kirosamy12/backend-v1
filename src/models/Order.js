@@ -12,7 +12,12 @@ const orderItemSchema = new mongoose.Schema({
 })
 
 const orderSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // null = guest
+  guestInfo: {
+    name: String,
+    email: String,
+    phone: String,
+  },
   items: [orderItemSchema],
   shippingAddress: {
     name: String,
@@ -31,12 +36,13 @@ const orderSchema = new mongoose.Schema({
     enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
     default: 'pending',
   },
-  paymentMethod: { type: String, enum: ['card', 'cash'], default: 'card' },
+  paymentMethod: { type: String, enum: ['card', 'cash'], default: 'cash' },
   paymentStatus: { type: String, enum: ['pending', 'paid', 'refunded'], default: 'pending' },
   notes: { type: String, default: '' },
 }, { timestamps: true })
 
 orderSchema.index({ user: 1, createdAt: -1 })
 orderSchema.index({ 'items.brand': 1, status: 1 })
+orderSchema.index({ 'guestInfo.email': 1 })
 
 export default mongoose.model('Order', orderSchema)

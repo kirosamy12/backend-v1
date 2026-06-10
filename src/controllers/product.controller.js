@@ -72,11 +72,31 @@ export const createProduct = async (req, res, next) => {
 // PUT /api/products/:id (brand only)
 export const updateProduct = async (req, res, next) => {
   try {
+    const { category, ...rest } = req.body
+    let updateData = { ...rest }
+
+    // Resolve category name → ObjectId if needed
+    if (category) {
+      const Category = (await import('../models/Category.js')).default
+      // If it looks like an ObjectId already, use it directly
+      if (/^[a-f\d]{24}$/i.test(String(category))) {
+        updateData.category = category
+      } else {
+        let cat = await Category.findOne({ name: { $regex: new RegExp(`^${category}$`, 'i') } })
+        if (!cat) {
+          const slug = String(category).toLowerCase().replace(/\s+/g, '-')
+          cat = await Category.create({ name: category, slug })
+        }
+        updateData.category = cat._id
+      }
+    }
+
     const product = await Product.findOneAndUpdate(
       { _id: req.params.id, brand: req.brand._id },
-      req.body,
+      updateData,
       { new: true, runValidators: true }
-    )
+    ).populate('brand', 'name logo').populate('category', 'name slug')
+
     if (!product) return res.status(404).json({ message: 'Product not found' })
     res.json({ product })
   } catch (err) { next(err) }

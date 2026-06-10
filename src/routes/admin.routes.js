@@ -3,7 +3,7 @@ import {
   adminLogin, getAdminOverview, getRevenueAnalytics,
   getBrands, createBrand, updateBrand, deleteBrand,
   getUsers, updateUserStatus,
-  getAllOrders,
+  getAllOrders, getOrderById, updateOrderStatus,
   getCoupons, createCoupon, updateCoupon, deleteCoupon,
   getCategories, createCategory, deleteCategory,
 } from '../controllers/admin.controller.js'
@@ -30,6 +30,8 @@ router.put('/users/:id/status', protectAdmin, updateUserStatus)
 
 // Orders
 router.get('/orders', protectAdmin, getAllOrders)
+router.get('/orders/:id', protectAdmin, getOrderById)
+router.put('/orders/:id/status', protectAdmin, updateOrderStatus)
 
 // Coupons
 router.get('/coupons', protectAdmin, getCoupons)

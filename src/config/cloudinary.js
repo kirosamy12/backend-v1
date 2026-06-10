@@ -38,9 +38,33 @@ const avatarStorage = new CloudinaryStorage({
   },
 })
 
-export const uploadBrandLogo = multer({ storage: brandLogoStorage }).single('logo')
-export const uploadProductImages = multer({ storage: productImageStorage }).array('images', 5)
-export const uploadAvatar = multer({ storage: avatarStorage }).single('avatar')
+// Storage for banners
+const bannerStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'shopco/banners',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ width: 1440, height: 600, crop: 'limit', quality: 'auto' }],
+  },
+})
+
+// Storage for promotions
+const promotionStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'shopco/promotions',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ width: 800, height: 600, crop: 'limit', quality: 'auto' }],
+  },
+})
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+
+export const uploadBrandLogo = multer({ storage: brandLogoStorage, limits: { fileSize: MAX_FILE_SIZE } }).single('logo')
+export const uploadProductImages = multer({ storage: productImageStorage, limits: { fileSize: MAX_FILE_SIZE } }).array('images', 5)
+export const uploadAvatar = multer({ storage: avatarStorage, limits: { fileSize: 2 * 1024 * 1024 } }).single('avatar')
+export const uploadBannerImage = multer({ storage: bannerStorage, limits: { fileSize: MAX_FILE_SIZE } }).single('image')
+export const uploadPromotionImage = multer({ storage: promotionStorage, limits: { fileSize: MAX_FILE_SIZE } }).single('image')
 
 // Direct upload helper (for base64 or URL)
 export const uploadToCloudinary = async (file, folder = 'shopco') => {
