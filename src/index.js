@@ -19,6 +19,8 @@ import publicRoutes from './routes/public.routes.js'
 import bannerRoutes from './routes/banner.routes.js'
 import promotionRoutes from './routes/promotion.routes.js'
 import presenceRoutes from './routes/presence.routes.js'
+import followRoutes from './routes/follow.routes.js'
+import notificationRoutes from './routes/notification.routes.js'
 import { notFound, errorHandler } from './middleware/errorHandler.js'
  
 const app = express()
@@ -90,6 +92,8 @@ app.use('/api/public', publicRoutes)
 app.use('/api/banners', bannerRoutes)
 app.use('/api/promotions', promotionRoutes)
 app.use('/api/presence', presenceRoutes)
+app.use('/api/brands', followRoutes)
+app.use('/api/users', notificationRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', env: process.env.NODE_ENV }))

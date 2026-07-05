@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
   addresses: [addressSchema],
   isActive: { type: Boolean, default: true },
   refreshToken: { type: String, select: false },
+  followedBrands: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Brand' }],
 }, { timestamps: true })
 
 // Hash password before save

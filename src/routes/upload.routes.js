@@ -5,8 +5,11 @@ import { protectAdmin, protectBrand, protect } from '../middleware/auth.js'
 
 const router = Router()
 
-// Brand logo — admin or brand
+// Brand logo — admin or brand (authenticated)
 router.post('/brand-logo', protectAdmin, uploadBrandLogo, uploadBrandLogoHandler)
+
+// Brand logo upload during registration — no auth required
+router.post('/brand-logo/register', uploadBrandLogo, uploadBrandLogoHandler)
 
 // Product images — brand only
 router.post('/product-images', protectBrand, uploadProductImages, uploadProductImagesHandler)

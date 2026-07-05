@@ -1,6 +1,25 @@
 import jwt from 'jsonwebtoken'
 import Brand from '../models/Brand.js'
 
+// POST /api/brand/auth/register
+export const brandRegister = async (req, res, next) => {
+  try {
+    const { name, email, password, description, phone, website } = req.body
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email and password are required' })
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters' })
+    }
+    const existing = await Brand.findOne({ email: email.toLowerCase() })
+    if (existing) {
+      return res.status(409).json({ message: 'An account with this email already exists' })
+    }
+    const brand = await Brand.create({ name, email, password, description, phone, website, status: 'pending' })
+    res.status(201).json({ message: 'Application submitted. You will be notified once approved.', brand })
+  } catch (err) { next(err) }
+}
+
 const signToken = (id) =>
   jwt.sign({ id, role: 'brand' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' })
 
